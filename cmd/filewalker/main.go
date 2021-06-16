@@ -85,18 +85,23 @@ func main() {
 	execWait := executorFunc(filteredPaths, *outFile)
 
 	// Start work and collect results
-	filepath.WalkDir(baseDir, func(path string, d fs.DirEntry, err error) error {
-		if d.Type().IsRegular() {
-			inputs <- path
-		}
+	go func() {
+		filepath.WalkDir(baseDir, func(path string, d fs.DirEntry, err error) error {
+			if d.Type().IsRegular() {
+				inputs <- path
+			}
 
-		return nil
-	})
-	close(inputs)
-	for i := 0; i < *filterWorkersNum; i++ {
-		mainFilter.Wait()
-	}
-	close(filteredPaths)
+			return nil
+		})
+		close(inputs)
+	}()
+
+	go func() {
+		for i := 0; i < *filterWorkersNum; i++ {
+			mainFilter.Wait()
+		}
+		close(filteredPaths)
+	}()
 
 	for err := range execWait {
 		if err != nil {
@@ -104,7 +109,6 @@ func main() {
 			helpAndExit(1)
 		}
 	}
-
 }
 
 func helpAndExit(status int) {

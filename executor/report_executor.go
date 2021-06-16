@@ -46,6 +46,7 @@ func ReportExecutor(inputs <-chan string, opts ...string) <-chan error {
 	}
 
 	var outDevice io.Writer
+	closeOutDevice := func() {} // At the beggining, it's a no-op
 	var err error
 	if filename == "" {
 		outDevice = os.Stdout
@@ -59,10 +60,12 @@ func ReportExecutor(inputs <-chan string, opts ...string) <-chan error {
 
 			return done
 		}
+		closeOutDevice = func() { (outDevice.(*os.File)).Close() }
 	}
 
 	go func() {
 		defer close(done)
+		defer closeOutDevice() // We want this to execute *before* the closing
 
 		sheap := make(StringHeap, 0)
 		buff := bufio.NewWriter(outDevice)
